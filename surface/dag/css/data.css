@@ -1,0 +1,43 @@
+.data_dom{
+	display: flex;
+	width: 100%;
+	box-sizing: border-box;
+	padding:10px;
+	height: 100px;
+}
+.image_area{
+	flex : 1;
+}
+.image_area img{
+	height:80px;
+}
+.text_area{
+	flex:2;
+}
+.btn_area{
+	flex: 1;
+}
+.title{
+	height:20px;
+	font-size: 18px;
+	line-height: 20px;
+	font-weight: bold;
+}
+.msg{
+	height:60px;
+	font-size: 12px;
+	line-height: 15px;
+}
+.btn{
+	font-size: 13px;
+	text-align: center;
+	height: 30px;
+	margin: 0 auto;
+	margin-top: 25px;
+	width: 100px;
+	border-radius: 5px;
+	background-color: #03A9F4;
+	color: #fff;
+	line-height: 30px;
+	cursor:pointer;
+}

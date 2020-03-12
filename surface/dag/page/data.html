@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>data</title>
+	<link rel="stylesheet" type="text/css" href="../css/data.css">
+</head>
+<body>
+<div class = 'data_area'>
+	<div v-for = 'n in data' class = 'data_dom'>
+		<div class = 'image_area'>
+			<img v-bind:src = 'n.image' />
+		</div>
+		<div class = 'text_area'>
+			<div class = 'title'>
+				{{ n.title }}
+			</div>
+			<div class = 'msg' v-html = "text(n.msg)">
+			</div>
+		</div>
+		<div class = 'btn_area'>
+			<div class = 'btn' v-on:click = "choose(n.id)">
+				选择此数据集
+			</div>
+		</div>
+	</div>
+</div>
+</body>
+<script type="text/javascript" src = '../js/vue.min.js'></script>
+<script type="text/javascript" src = '../js/q_web.js'></script>
+<script type="text/javascript">
+	var data = new Vue({
+		el : '.data_area',
+		data : {
+			data : [{
+				id : 8851,
+				image : "../images/test.jpg",
+				title : "测试用标题",
+				msg : "测试用文本\n 测试用文本\n 测试用文本",
+			},{
+				id : 2,
+				image : "../images/test.jpg",
+				title : "测试用标题",
+				msg : "测试用文本\n 测试用文本\n 测试用文本",
+			},{
+				id : 3,
+				image : "../images/test.jpg",
+				title : "测试用标题",
+				msg : "测试用文本\n 测试用文本\n 测试用文本",
+			}]
+		},
+		methods : {
+			text : function(text){
+				var str = text.replace(/\n/gm,"<br/>");
+				return str;
+			},
+			choose : function(id){
+				// alert(id);
+				new QWebChannel(qt.webChannelTransport, function(channel)
+				{
+                //Get Qt interact object
+                	var interactObj = channel.objects.interactObj;
+                	//调用py方法向后台传数据 function替换为py方法
+                	interactObj.JSSendMessage(id);
+
+            	});
+            	interactObj.SigSendMessageToJS.connect(function(str)
+				{
+                });
+			}
+		}
+	})
+</script>
+</html>

@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+	<link rel="stylesheet" type="text/css" href="../css/main.css">
+</head>
+<body>
+<div class = 'cont'>
+	<div class = 'white_block' v-if = 'block_bind'>
+		
+	</div>
+	<div class = 'dag_area' v-on:contextmenu = 'openMenu(event)'>
+		<div class = 'export_btn'>
+			导出数据
+		</div>
+		<div class = 'menu' v-if = 'menu_show == true' v-bind:style = 'menu_pos'>
+			<div class = 'list' v-on:click = 'add()' v-if = '!dom_select'>
+				创建新节点
+			</div>
+			<div class = 'list' v-on:click = 'clear()' v-if = '!dom_select'>
+				清除所有节点
+			</div>
+			<div class = 'list' v-on:click = 'openSetting()' v-if = 'dom_select && setting_type != "add"'>
+				编辑节点内容
+			</div>
+			<div class="list" v-if = 'dom_select && setting_type != "input"' v-on:click = 'change_input()'>
+				切换为input类型
+			</div>
+			<div class="list" v-if = 'dom_select && setting_type != "add"' v-on:click = 'change_add()' >
+				切换为add类型
+			</div>
+			<div class="list" v-if = 'dom_select && setting_type != "hidden"' v-on:click = 'change_hidden()'>
+				切换为hidden类型
+			</div>
+			<div class="list" v-if = 'dom_select && setting_type != "out"' v-on:click = 'change_out()'>
+				切换为out类型
+			</div>
+			<div class = 'list' v-if = 'dom_select' v-on:click = 'del()'>
+				删除当前结点
+			</div>
+		</div>
+		<div class = 'dag_area'>
+			<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" version="1.1" class = 'my_svg' v-on:mousemove = 'from_move(event)'>
+				<template v-for = 'n in data'>
+					<path v-for = '(line,index) in n.child' v-bind:class = '"dag" + n.id' stroke="red" v-bind:d="line_link(('dag' + n.id) , ('dag' + line))" style="stroke-width: 4px;" fill = 'none' stroke-linecap="round" v-on:click = 'del_line_show(n.id,index,event)'/>
+				</template>
+				<path v-if = 'show_line' v-bind:d = 'showLine()' style="stroke-width: 4px;" stroke="red" fill = 'none' stroke-linecap="round"/>
+			</svg>
+			<div class = 'dag'  v-for = '(n,index) in data' v-bind:id = '"dag" + n.id' v-on:mousedown = 'moveStart(event,index)' v-on:mousemove = 'moving(event)'  v-on:mouseup = 'moveEnd()' v-bind:style = 'dag_pos[index]'>
+				<div class = 'from_parent' v-on:click = 'from_start(event,n.id)'>
+					
+				</div>
+				<div class = 'to_child' v-on:click = 'to_start(event,n.id)'>
+					
+				</div>
+				<div class = 'dag_title' v-if = 'n.type != "add"'>
+					{{ n.title }}<!-- {{ n.id }} -->
+				</div>
+				<div class = 'dag_units' v-if = 'n.type == "hidden" || n.type == "out"'>
+					units : {{ n.units }}
+				</div>
+				<div class = 'dag_msg' v-if = 'n.type != "add"'>
+					{{ n.msg }}
+				</div>
+				<div class = 'add_node' v-if = 'n.type == "add"'>
+					相加
+				</div>
+				<div class = 'dag_mask' v-bind:dag_id = '"dag" + n.id'>
+					
+				</div>
+			</div>
+		</div>
+		<div class = 'del_line_btn' v-bind:style = 'del_lineBtn_pos' v-if = 'del_lineBtn_show' v-on:click = 'del_line()'>
+			
+		</div>
+		<div v-if = 'random_math' style="display : none"></div>
+		<div class = 'message_outer' v-if = 'setting_show'>
+			<div class = 'message'>
+				<div class = 'setting_title'>
+					<span>编辑</span>
+					<div class = 'close' v-on:click = 'closeSetting()'>
+						
+					</div>
+				</div>
+				<div class = 'setting_area'>
+					<div class = 'setting_list'>
+						<div>
+							节点简称:
+						</div>
+						<div>
+							<input type="" name="" placeholder="请输入节点简称" v-model = 'setting_title'>
+						</div>
+					</div>
+					<div class = 'setting_list' v-if = 'setting_type == "hidden" || setting_type == "out"'>
+						<div>
+							节点units:
+						</div>
+						<div>
+							<input type="number" name="" placeholder="请输入节点简称" v-model = 'setting_units' min="0">
+						</div>
+					</div>
+					<div class = 'setting_list'>
+						<div>
+							节点内容:
+						</div>
+						<div>
+							<textarea placeholder="请输入节点详细内容" v-model = 'setting_msg'></textarea>
+						</div>
+					</div>
+					<div class = 'setting_confirm' v-on:click = 'saveSetting()'>
+						保存修改
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+</body>
+<script type="text/javascript" src = '../js/vue.min.js'></script>
+<script type="text/javascript" src = '../js/main.js'></script>
+<script type="text/javascript" src = '../js/q_web.js'></script>
+<!-- <script type="text/javascript" src="../js/saveAs.js"></script> -->
+<script type="text/javascript">
+	var dag = new Vue({
+		el : '.cont',
+		data : {
+			data : [],
+			/*具体每一条是干嘛的，从算法里反推*/
+			dom_select : false,
+			menu_show : false,
+			setting_show : false,
+			setting_id : '',
+			setting_type : '',
+			setting_units : 0,
+			setting_msg : '',
+			setting_title : '',
+			is_move : false,
+			move_x : 0,
+			move_y : 0,
+			dx : 0,
+			dy : 0,
+			md_x : 0,
+			md_y : 0,
+			m_move_x : 0,
+			m_move_y : 0,
+			move_id : '',
+			line_sx : 0,
+			line_sy : 0,
+			line_from_mx : 0,
+			line_from_my : 0,
+			line_to_mx : 0,
+			line_to_my : 0,
+			line_edx : 0,
+			line_edy : 0,
+			line_from : false,
+			line_to : false,
+			show_line : false,
+			parent_id : '',
+			child_id : '',
+			random_math : false,
+			menu_pos : {},
+			dag_pos : [],
+			line_child : 0,
+			line_parent : 0,
+			del_lineBtn_show : false,
+			move_index : '',
+			del_lineBtn_pos : {top : 0 + 'px',top: 0 + 'px'},
+			block_bind : false
+		},
+		methods : {
+			/*添加节点*/
+			add : function(){
+				var _v = this;
+				var id;
+				if(_v.data.length == 0){
+					id = 1;
+				}else{
+					id = _v.data[_v.data.length - 1].id + 1;
+				}
+				var data = {
+					id : id,
+					child : [],
+					parent : [],
+					type : "hidden",
+					msg : "默认文本内容",
+					title : "默认标题",
+					units : 0
+				}
+				var pos = {left : 0 + 'px',top : 0 + 'px',zIndex : 0};
+				_v.dag_pos.push(pos);
+				_v.data.push(data);
+				var _v = this;
+				console.log(_v.data);
+			},
+			/*clear all dom*/
+			clear : function(){
+				var _v = this;
+				_v.data.splice(0,_v.data.length);
+				alert('清除成功');
+			},
+			/*delet one dom*/
+			del : function(){
+				var _v = this;
+				// alert('一个严肃的debug');
+				// return false;
+				// console.log('del',_v.setting_id);
+				_v.data.forEach(function(item,index){
+					if(item.id == _v.setting_id.split('dag')[1]){
+						_v.data.forEach(function(n,ind){
+							n.child.forEach(function(id,i){
+								if(id == _v.setting_id.split('dag')[1]){
+									
+									n.child.splice(i,1);
+									
+								}
+							});
+							n.parent.forEach(function(id,i){
+								if(id == _v.setting_id.split('dag')[1]){
+									n.parent.splice(i,1);
+								}
+							})
+						})
+						_v.data.splice(index,1);
+						_v.dag_pos.splice(index,1);
+					}
+				})
+				if(_v.random_math){
+					_v.random_math = false;
+				}else{
+					_v.random_math = true;
+				}
+			},
+			/*打开设置*/
+			openSetting : function(){
+				var _v = this;
+				console.log(_v.setting_id);
+				_v.setting_show = true;
+			},
+			/*关闭设置*/
+			closeSetting : function(){
+				var _v = this;
+				_v.setting_show = false;	
+			},
+			/*保存设置*/
+			saveSetting : function(){
+				var _v = this;
+				_v.data.forEach(function(item,index){
+					if(item.id == _v.setting_id.split('dag')[1]){
+						console.log(index);
+						console.log(_v.data[index].msg);
+						if(_v.setting_type == "hidden" || _v.setting_type == "out"){
+							_v.data[index].units =_v.setting_units;	
+						}
+						_v.data[index].msg = _v.setting_msg;
+						_v.data[index].title = _v.setting_title;
+						_v.setting_show = false;
+					}
+				})
+			},
+			/*节点移动开始*/
+			moveStart : function(e,index){
+				var _v = this;
+					_v.move_index = index;
+				if(e.target.className == 'dag_mask' && e.button == 0){
+					_v.is_move = true;
+					_v.move_id = e.target.getAttribute('dag_id');
+					var move_div = document.getElementById(_v.move_id);
+					_v.dag_pos[_v.move_index].zIndex = 1;
+					move_div.style.zIndex = 1;
+					_v.move_x = e.pageX;
+					_v.move_y = e.pageY;
+					_v.dx = _v.dag_pos[_v.move_index].left.split('px')[0];
+        			_v.dy = _v.dag_pos[_v.move_index].top.split('px')[0];
+        			_v.md_x = _v.move_x - _v.dx;
+        			_v.md_y = _v.move_y - _v.dy;
+					// console.log(_v.dx,_v.dy);
+				}
+			},
+			/*节点移动*/
+			moving : function(e){
+				var _v = this;
+				if(_v.is_move){
+					var move_div = document.getElementById(_v.move_id);
+					// return false;
+					_v.dx = _v.dag_pos[_v.move_index].left.split('px')[0];
+			        _v.dy = _v.dag_pos[_v.move_index].top.split('px')[0];
+			 		
+			        //获取鼠标移动实时坐标
+			        _v.m_move_x = e.pageX;
+			        _v.m_move_y = e.pageY;
+			        var ndx = _v.m_move_x - _v.md_x;
+			        var ndy = _v.m_move_y - _v.md_y;
+
+			        //把新div坐标值赋给div对象
+			        
+			        if(_v.random_math){
+			        	_v.random_math = false;
+			        }else{
+			        	_v.random_math = true;
+			        }
+
+			        _v.dag_pos[_v.move_index].left = ndx + 'px';
+			        _v.dag_pos[_v.move_index].top = ndy + 'px';
+				}
+			},
+			/*节点移动结束*/
+			moveEnd : function(e){
+				var _v = this;
+				if(_v.is_move){
+					_v.is_move = false;
+					var move_div = document.getElementById(_v.move_id);
+					move_div.style.zIndex = 0;
+					_v.move_x = 0;
+					_v.move_y = 0;
+					_v.dx = 0;
+					_v.dy = 0;
+					_v.md_x = 0;
+					_v.md_y = 0;
+					_v.m_move_x = 0;
+					_v.m_move_y = 0;
+					_v.move_div = '';
+
+				}
+			},
+			/*设置信息获取*/
+			bindingMsg : function(){
+				// return 1;
+				var _v = this;
+				_v.data.forEach(function(item,index){
+					if(item.id == _v.setting_id.split('dag')[1]){
+						// console.log(index);
+						// console.log(_v.data[index].msg);
+						_v.setting_type = _v.data[index].type;
+						_v.setting_units = _v.data[index].units;
+						_v.setting_msg = _v.data[index].msg;
+						_v.setting_title =  _v.data[index].title;
+					}
+				})
+			},
+			/*右键操作*/
+			openMenu : function(e){
+				var _v = this;
+				if(e.button == 2) {
+					console.log(e.target);
+					e.preventDefault();
+					if(e.target.className == 'dag_mask'){
+						_v.dom_select = true;
+						_v.setting_id = e.target.getAttribute('dag_id');
+						_v.bindingMsg();
+						console.log(_v.setting_id);
+					}else{
+						_v.dom_select = false;
+					}
+					console.log("您点击了鼠标右键！");
+					var _x = e.clientX,
+						_y = e.clientY;
+					_v.menu_show = true;		
+					_v.menu_pos =  { left : _x + 'px',top : _y + 'px',opacity : 1};
+					
+					
+				}
+			},
+			/*连线从父级开始*/
+			from_start : function(e,id){
+				var _v = this;
+				if(!_v.show_line){
+					if(!_v.line_from && e.button == 0){
+						/*执行中*/
+						_v.line_from = true;
+						_v.line_to = false;
+						_v.show_line = true;
+						_v.child_id = id;
+						_v.line_sx = e.pageX;
+						_v.line_sy = e.pageY;
+						_v.line_from_mx = e.pageX;
+						_v.line_v_my = e.pageY;
+						console.log(_v.line_sx,_v.line_sy);
+					}
+				}else{
+					if(_v.line_to && e.button == 0){
+						_v.child_id = id;
+						_v.data.forEach(function(item,index){
+							if(item.id == _v.parent_id && item.id != _v.child_id){
+								if(item.child.indexOf(_v.child_id)>-1){
+									
+								}else{
+									item.child.push(_v.child_id);
+								}
+							}
+							if(item.id == _v.child_id && item.id != _v.parent_id){
+								if(item.parent.indexOf(_v.parent_id)>-1){
+									
+								}else{
+									item.parent.push(_v.parent_id);
+								}
+							}
+							
+						})
+						_v.line_from = false;
+						_v.line_to = false;
+						_v.show_line = false;
+						_v.line_from_mx = 0;
+						_v.line_from_my = 0;
+						_v.line_to_mx = 0;
+						_v.line_to_my = 0;
+						_v.line_edx = 0;
+						_v.line_edy = 0;
+						_v.child_id = '';
+						_v.parent_id = '';
+						console.log(e.target.className);
+					}
+				}
+				e.stopPropagation();
+			},
+			change_add : function(){
+				var _v = this;
+				var id = _v.setting_id.split('dag')[1];
+				_v.data.forEach(function(n,index){
+					if(n.id == id){
+						n.type = "add";
+					}
+				})
+			},
+			change_hidden : function(){
+				var _v = this;
+				var id = _v.setting_id.split('dag')[1];
+				_v.data.forEach(function(n,index){
+					if(n.id == id){
+						n.type = "hidden";
+					}
+				})
+			},
+			change_input : function(){
+				var _v = this;
+				var id = _v.setting_id.split('dag')[1];
+				_v.data.forEach(function(n,index){
+					if(n.id == id){
+						n.type = "input";
+					}
+				})
+			},
+			change_out : function(){
+				var _v = this;
+				var id = _v.setting_id.split('dag')[1];
+				_v.data.forEach(function(n,index){
+					if(n.id == id){
+						n.type = "out";
+					}
+				})
+			},
+			/*连线移动中*/
+			from_move : function(e){
+				var _v = this;
+				if(_v.line_from){
+					_v.line_from_mx = e.pageX;
+					_v.line_from_my = e.pageY;
+				}else if(_v.line_to){
+					_v.line_to_mx = e.pageX;
+					_v.line_to_my = e.pageY;
+				}
+				if(_v.is_move){
+					var move_div = document.getElementById(_v.move_id);
+					// return false;
+					_v.dx = _v.dag_pos[_v.move_index].left.split('px')[0];
+			        _v.dy = _v.dag_pos[_v.move_index].top.split('px')[0];
+			 		
+			        //获取鼠标移动实时坐标
+			        _v.m_move_x = e.pageX;
+			        _v.m_move_y = e.pageY;
+			        var ndx = _v.m_move_x - _v.md_x;
+			        var ndy = _v.m_move_y - _v.md_y;
+
+			        //把新div坐标值赋给div对象
+			        
+			        if(_v.random_math){
+			        	_v.random_math = false;
+			        }else{
+			        	_v.random_math = true;
+			        }
+
+			        _v.dag_pos[_v.move_index].left = ndx + 'px';
+			        _v.dag_pos[_v.move_index].top = ndy + 'px';
+				}
+			},
+			/*连线从子级开始*/
+			to_start : function(e,id){
+				var _v = this;
+				console.log(1)
+				if(!_v.show_line){
+					if(!_v.line_to && e.button == 0){
+						/*执行中*/
+						_v.line_from = false;
+						_v.line_to = true;
+						_v.show_line = true;
+						_v.parent_id = id;
+						_v.line_sx = e.pageX;
+						_v.line_sy = e.pageY;
+						_v.line_to_mx = e.pageX;
+						_v.line_to_my = e.pageY;
+						console.log(_v.line_sx,_v.line_sy);
+					}
+				}else{
+					if(_v.line_from && e.button == 0){
+						_v.parent_id = id;
+						_v.data.forEach(function(item,index){
+							if(item.id == _v.parent_id && item.id != _v.child_id){
+								if(item.child.indexOf(_v.child_id)>-1){
+									
+								}else{
+									item.child.push(_v.child_id);
+								}
+							}
+							if(item.id == _v.child_id && item.id != _v.parent_id){
+								if(item.parent.indexOf(_v.parent_id)>-1){
+									
+								}else{
+									item.parent.push(_v.parent_id);
+								}
+							}
+						})
+						_v.line_from = false;
+						_v.line_to = false;
+						_v.show_line = false;
+						_v.line_from_mx = 0;
+						_v.line_from_my = 0;
+						_v.line_to_mx = 0;
+						_v.line_to_my = 0;
+						_v.line_edx = 0;
+						_v.line_edy = 0;
+						_v.child_id = '';
+						_v.parent_id = '';
+						console.log(e.target.className);
+					}
+				}
+				e.stopPropagation();
+			},
+			/*连线时显示的线条*/
+			showLine : function(){
+				var _v = this;
+				var path;
+				if(_v.line_from){
+					path = 'm ' + _v.line_sx + ' ' + _v.line_sy + ' ' + 'C ' + ((_v.line_sx + _v.line_from_mx) / 2) + ' ' + _v.line_sy + ' ' + ((_v.line_sx + _v.line_from_mx) / 2) + ' ' + (_v.line_from_my) + ' ' + (_v.line_from_mx) + ' ' + (_v.line_from_my);
+				}else if(_v.line_to){
+					path = 'm ' + _v.line_sx + ' ' + _v.line_sy + ' ' + 'C ' + ((_v.line_sx + _v.line_to_mx) / 2) + ' ' + _v.line_sy + ' ' + ((_v.line_sx + _v.line_to_mx) / 2) + ' ' + (_v.line_to_my) + ' ' + (_v.line_to_mx) + ' ' + (_v.line_to_my);
+				}
+				return path;
+			},
+			/*所有的线的连接*/
+			line_link : function(p_id,c_id){
+				var _v = this;
+				var link_sx = document.getElementById(p_id).offsetLeft + 170;
+				var link_sy = document.getElementById(p_id).offsetTop + 27;
+				var link_ex = document.getElementById(c_id).offsetLeft;
+				var link_ey = document.getElementById(c_id).offsetTop + 27;
+				var path = 'm ' + link_sx + ' ' + link_sy + ' ' + 'C ' + ((link_sx + link_ex) / 2)+ ' ' + link_sy + ', ' + ((link_sx + link_ex) / 2) + ' ' + link_ey + ', ' + link_ex + ' ' + link_ey;
+				return path;
+			},
+			/*显示连线删除按钮*/
+			del_line_show : function(id,index,e){
+				var _v = this;
+				_v.line_parent = id;
+				_v.line_child = index;
+				_v.del_lineBtn_show = true;
+				var dom_child,dom_child_l,dom_child_t;
+				var child_dom;
+				_v.data.forEach(function(n){
+					if(n.id == id){
+						dom_child = document.getElementById('dag' + n.child[index]);
+					}
+				})
+				// _v.data.forEach(function(item){
+				// 	item.parent.forEach(function(it){
+				// 		if(it == id &&){
+				// 			dom_child = document.getElementById('dag' + item.id);
+				// 		}
+				// 	});
+				// })
+				var dom = document.getElementById('dag' + id);
+				var dom_l = dom.offsetLeft;
+				var dom_t = dom.offsetTop;
+				dom_child_l = dom_child.offsetLeft;
+				dom_child_t = dom_child.offsetTop;
+				if(dom_l < dom_child_l){
+					_v.del_lineBtn_pos.left = dom_l + 130 + ((dom_child_l - (dom_l + 130)) / 2) + 'px';
+				}else{
+					_v.del_lineBtn_pos.left = dom_child_l + 130 + ((dom_l - (dom_child_l + 130)) / 2) + 'px';
+				}
+				if(dom_t < dom_child_t){
+					_v.del_lineBtn_pos.top = 10 + dom_t + (dom_child_t - dom_t) / 2 + 'px';
+				}else{
+					_v.del_lineBtn_pos.top = 10 + dom_child_t + (dom_t - dom_child_t) / 2 + 'px';
+				}
+				console.log(dom_l,dom_t);
+				e.stopPropagation();
+			},
+			/*删除连线*/
+			del_line : function(){
+				var _v = this;
+				_v.data.forEach(function(item,index){
+					if(item.id == _v.line_parent){
+						_v.data.forEach(function(n){
+							if(n.id == item.child[_v.line_child]){
+								n.parent.forEach(function(it,ind){
+									if(it == _v.line_parent){
+										n.parent.splice(ind,1);
+									}
+								});
+							}
+						});
+						item.child.splice(_v.line_child,1);
+					}
+				})
+			},
+			/*导出数据*/
+			// export_data : function(){
+			// 	var _v = this;
+			// 	// alert(JSSendMessage);
+			// 	new QWebChannel(qt.webChannelTransport,function(channel) {
+			// 		var interactObj = channel.objects.interactObj;
+			//         window.JSSendMessage = interactObj.JSSendMessage;
+			// 		JSSendMessage(_v.data);
+			// 		// alert(_v.data);
+			// 		interactObj.SigSendMessageToJS.connect(function(str) 
+			// 		{  
+	  //                   alert('链接成功');
+	  //               });
+			//     });
+				
+			// 	// alert(JSSendMessage);
+			// 	// var data = _v.data;
+			// 	// var data = JSON.stringify(_v.data);
+			// 	// var file = new File([data], "main.json", { type: "text/plain;charset=utf-8" });
+   //  // 			saveAs(file);
+				
+			// 	// alert(data);
+			// 	// var xmlhttp= new XMLHttpRequest();
+			// 	// xmlhttp.open("GET","../json/",true);
+			// 	// xmlhttp.setRequestHeader("Content-type","application/json;charset=UTF-8");
+			// 	// xmlhttp.send(data);  
+   //  //           	xmlhttp.onreadystatechange = function() {  
+   //  //                 if(xmlhttp.readyState == 4 && xmlhttp.status == 200) {  
+   //  //                     alert("提示"+ xmlhttp.msg);  
+   //  //                 }
+   //  //          }; 
+			// 	// console.log(data);
+			// }
+		}
+	})
+/*操作数据初始化*/
+document.getElementsByClassName('cont')[0].onclick = function(){
+	var _v = dag;
+	_v.line_from = false;
+	_v.line_to = false;
+	_v.show_line = false;
+	_v.line_from_mx = 0;
+	_v.line_from_my = 0;
+	_v.line_to_mx = 0;
+	_v.line_to_my = 0;
+	_v.line_edx = 0;
+	_v.line_edy = 0;
+	_v.child_id = '';
+	_v.parent_id = '';
+	_v.menu_show = false;
+	_v.del_lineBtn_show = false;
+}
+	 window.onload = function()
+		 {
+		 	var _v = dag;
+		 	
+            new QWebChannel(qt.webChannelTransport, function(channel)
+			{
+                //Get Qt interact object
+                var interactObj = channel.objects.interactObj;
+                //Web send message to Qt
+                document.getElementsByClassName('export_btn')[0].onclick = function()
+				{
+					// output("Send string to Qt: " + input.value);
+
+                    //Web use the interface of Qt
+                    var data = JSON.stringify(_v.data);
+                    //预留接口
+					//interactObj.fun(alert);
+                    interactObj.JSSendMessage(data);
+                }
+                //Web connect the Qt signal, then Qt can call "output" function
+                interactObj.SigSendMessageToJS.connect(function(str)
+				{
+                });
+            });
+        }
+</script>
+</html>

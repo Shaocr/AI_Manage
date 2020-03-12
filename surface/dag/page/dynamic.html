@@ -1,0 +1,144 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Highcharts Example</title>
+
+		<style type="text/css">
+            #container {
+                min-width: 310px;
+                height: 400px;
+                margin: 0 auto;
+            }
+		</style>
+	</head>
+	<body>
+<script type="text/javascript" src = "/static/js/q_web.js"></script>
+<script src="/static/js/highcharts.js"></script>
+<script src="/static/js/exporting.js"></script>
+<script src="/static/js/export-data.js"></script>
+<script type="text/javascript" src = "/static/js/vue.min.js"></script>
+<div class = 'line_outer'>
+    <button id = "btn" v-on:click = 'getData()'>button</button>
+    <div id="container"></div>    
+</div>
+
+<script type="text/javascript">
+    var lineAll = new Vue({
+        el : '.line_outer',
+        data : {
+            y : [],
+            new_y : 0
+        },
+        methods : {
+            getData : function(){
+                var _v  = this;
+                _v.y = [1,2,3,4];
+                var data_y = new Array();
+                
+
+                
+                
+                   new QWebChannel(qt.webChannelTransport, function(channel)
+                   {
+                       //Get Qt interact object
+                       var interactObj = channel.objects.interactObj;
+                    
+                           interactObj.JSSendMessage("1");
+
+                       //Web connect the Qt signal, then Qt can call "output" function
+                       interactObj.SigSendMessageToJS.connect(function(str)
+                       {
+                           	var data_all = [9,8,7,6,5,4,3,2,1,0];//这里是注释 data_all = 数组,由后台回调
+                        	for(var i = 0;i < data_all.length;i++){;
+                            data_y[i] = data_all[i];
+                        	}
+                        	_v.y = data_y
+                        	_v.new_y = data_y[data_y.length - 1];
+                       });
+                   });
+            }
+        }
+    })
+        
+    Highcharts.chart('container', {
+    chart: {
+        type: 'spline',
+        animation: Highcharts.svg, // don't animate in old IE
+        marginRight: 10,
+        events: {
+            load: function () {
+                var _v = lineAll;
+                // set up the updating of the chart each second
+                var series = this.series[0];
+                // console.log(_v.y[0])；
+                _v.getData();
+                setInterval(function () {
+                    var x = (new Date()).getTime(), // current time
+                        y = _v.new_y;
+                    series.addPoint([x, y], true, true);
+                }, 1000);
+            }
+        }
+    },
+
+    time: {
+        useUTC: false
+    },
+
+    title: {
+        text: ''
+    },
+    xAxis: {
+        type: 'datetime',
+        tickPixelInterval: 150
+    },
+    yAxis: {
+        title: {
+            text: 'Value'
+        },
+        plotLines: [{
+            value: 0,
+            width: 1,
+            color: '#808080'
+        }]
+    },
+    tooltip: {
+        headerFormat: '<b>{series.name}</b><br/>',
+        pointFormat: '{point.x:%Y-%m-%d %H:%M:%S}<br/>{point.y:.2f}'
+    },
+    legend: {
+        enabled: false
+    },
+    exporting: {
+        enabled: false
+    },
+    series: [{
+        name: 'Random data',
+        data: (function () {
+            var _v = lineAll;
+            // generate an array of random data
+            var data = [],
+                time = (new Date()).getTime(),
+                i;
+                _v.getData();
+                console.log(_v.y.length);
+                var t = 1 - _v.y.length;
+                console.log(t);
+            for (i = t; i <= 0; i += 1) {
+                data.push({
+                    x: time + i * 1000,
+                    y: _v.y[i + _v.y.length - 1]
+                });
+            }
+            return data;
+        }())
+    }]
+});
+
+
+
+		</script>
+	</body>
+</html>
